@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2.5D Parallax Batch Video Maker</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c1020;
+      --panel: #151a2e;
+      --panel-2: #1c2440;
+      --accent: #8b5cf6;
+      --accent-2: #06b6d4;
+      --text: #eef2ff;
+      --muted: #aab3d3;
+      --danger: #fb7185;
+      --ok: #34d399;
+      --border: rgba(255,255,255,.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(139,92,246,.35), transparent 34rem),
+        radial-gradient(circle at bottom right, rgba(6,182,212,.22), transparent 32rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 36px clamp(18px, 4vw, 56px) 18px;
+      display: grid;
+      gap: 12px;
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4.5rem);
+      line-height: .96;
+      letter-spacing: -.06em;
+    }
+
+    .lead {
+      max-width: 860px;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    main {
+      width: min(1220px, calc(100% - 32px));
+      margin: 0 auto 48px;
+      display: grid;
+      grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.035));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 28px 80px rgba(0,0,0,.32);
+      overflow: hidden;
+    }
+
+    .section { padding: 22px; }
+
+    .dropzone {
+      border: 1.5px dashed rgba(255,255,255,.28);
+      border-radius: 20px;
+      min-height: 190px;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+      background: rgba(255,255,255,.045);
+      transition: border .2s, transform .2s, background .2s;
+      cursor: pointer;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--accent-2);
+      background: rgba(6,182,212,.12);
+      transform: translateY(-2px);
+    }
+
+    .dropzone strong { display: block; font-size: 1.15rem; margin-bottom: 8px; }
+    .dropzone span, .hint { color: var(--muted); font-size: .95rem; line-height: 1.55; }
+    input[type="file"] { display: none; }
+
+    label { color: var(--muted); font-size: .9rem; display: block; margin-bottom: 8px; }
+
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      background: rgba(0,0,0,.24);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 13px;
+      outline: none;
+      font: inherit;
+    }
+
+    input[type="number"]:focus, input[type="text"]:focus { border-color: var(--accent-2); }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 13px 16px;
+      color: white;
+      font-weight: 800;
+      font-size: .98rem;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 12px 32px rgba(6,182,212,.22);
+      transition: transform .15s, opacity .15s, filter .15s;
+    }
+
+    button.secondary { background: var(--panel-2); box-shadow: none; color: var(--text); border: 1px solid var(--border); }
+    button.danger { background: rgba(251,113,133,.16); color: #fecdd3; box-shadow: none; border: 1px solid rgba(251,113,133,.35); }
+    button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+    button:disabled { cursor: not-allowed; opacity: .52; }
+
+    .preview-wrap { padding: 18px; }
+
+    canvas {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+      background: #050816;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 18px 18px;
+    }
+
+    .status { color: var(--muted); font-size: .92rem; }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+
+    .list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .image-list {
+      display: grid;
+      gap: 12px;
+      max-height: 58vh;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr) 92px 32px;
+      gap: 12px;
+      align-items: center;
+      padding: 10px;
+      background: rgba(255,255,255,.055);
+      border: 1px solid var(--border);
+      border-radius: 17px;
+    }
+
+    .item.dragging { opacity: .45; }
+    .thumb { width: 76px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; background: #050816; }
+    .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+    .meta { color: var(--muted); font-size: .82rem; margin-top: 3px; }
+    .handle { font-size: 1.25rem; text-align: center; color: var(--muted); cursor: grab; user-select: none; }
+    .empty { color: var(--muted); text-align: center; padding: 38px 16px; border: 1px dashed var(--border); border-radius: 18px; }
+
+    .progress-shell {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,.1);
+      margin-top: 14px;
+    }
+
+    .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .image-list { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>2.5D Parallax / Depth Map Camera Move</h1>
+    <p class="lead">Kéo thả hàng trăm ảnh 16:9, đặt thời lượng riêng cho từng ảnh bằng frame ở 30fps, kéo để sắp xếp thứ tự, rồi xuất video WebM tự động với chuyển động camera ngẫu nhiên và Ease In Out.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="section">
+        <label for="imageInput">Thêm ảnh 16:9</label>
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả ảnh">
+          <div>
+            <strong>Chọn ảnh hoặc kéo thả vào đây</strong>
+            <span>Hỗ trợ nhiều ảnh cùng lúc. Tất cả xử lý ngay trên trình duyệt, không cần upload lên server.</span>
+          </div>
+        </div>
+        <input id="imageInput" type="file" accept="image/*" multiple />
+
+        <div class="controls">
+          <div>
+            <label for="defaultFrames">Frame mặc định / ảnh</label>
+            <input id="defaultFrames" type="number" min="15" step="1" value="150" />
+          </div>
+          <div>
+            <label for="seedInput">Seed ngẫu nhiên</label>
+            <input id="seedInput" type="text" value="auto" />
+          </div>
+        </div>
+        <p class="hint">Ví dụ: 150 frame = 5 giây ở 30fps. Đổi seed để tạo bộ chuyển động ngẫu nhiên khác.</p>
+      </div>
+
+      <div class="section" style="padding-top:0">
+        <div class="list-head">
+          <strong>Danh sách ảnh</strong>
+          <button class="danger" id="clearBtn" type="button">Xóa tất cả</button>
+        </div>
+        <div class="image-list" id="imageList">
+          <div class="empty">Chưa có ảnh nào.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="preview-wrap">
+        <canvas id="canvas" width="1920" height="1080"></canvas>
+      </div>
+      <div class="toolbar">
+        <div>
+          <div id="status" class="status">Sẵn sàng.</div>
+          <div class="progress-shell" aria-label="Tiến trình xuất video"><div id="progressBar" class="progress-bar"></div></div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <button id="previewBtn" type="button" class="secondary">Xem thử ảnh đầu</button>
+          <button id="exportBtn" type="button">Xuất video WebM</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const FPS = 30;
+    const WIDTH = 1920;
+    const HEIGHT = 1080;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const imageInput = document.getElementById('imageInput');
+    const dropzone = document.getElementById('dropzone');
+    const defaultFrames = document.getElementById('defaultFrames');
+    const seedInput = document.getElementById('seedInput');
+    const imageList = document.getElementById('imageList');
+    const statusEl = document.getElementById('status');
+    const progressBar = document.getElementById('progressBar');
+    const exportBtn = document.getElementById('exportBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let items = [];
+    let dragIndex = null;
+
+    function hashString(text) {
+      let h = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function mulberry32(seed) {
+      return function random() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function easeInOut(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function setStatus(text, kind = '') {
+      statusEl.textContent = text;
+      statusEl.className = `status ${kind}`;
+    }
+
+    function setProgress(value) {
+      progressBar.style.width = `${Math.max(0, Math.min(100, value))}%`;
+    }
+
+    function fitCover(img, scale = 1, offsetX = 0, offsetY = 0) {
+      const base = Math.max(WIDTH / img.naturalWidth, HEIGHT / img.naturalHeight) * scale;
+      const w = img.naturalWidth * base;
+      const h = img.naturalHeight * base;
+      ctx.drawImage(img, (WIDTH - w) / 2 + offsetX, (HEIGHT - h) / 2 + offsetY, w, h);
+    }
+
+    function makeMove(index) {
+      const seedText = seedInput.value.trim() === 'auto' ? `${Date.now()}-${index}` : `${seedInput.value}-${index}`;
+      const random = mulberry32(hashString(seedText));
+      const direction = random() * Math.PI * 2;
+      const drift = 34 + random() * 54;
+      const zoomStart = 1.045 + random() * 0.04;
+      const zoomEnd = 1.095 + random() * 0.085;
+      const rotate = (random() - 0.5) * 0.012;
+      return {
+        x0: Math.cos(direction) * drift,
+        y0: Math.sin(direction) * drift * 0.62,
+        x1: -Math.cos(direction + random() * 0.9) * drift,
+        y1: -Math.sin(direction + random() * 0.9) * drift * 0.62,
+        zoomStart,
+        zoomEnd,
+        rotate
+      };
+    }
+
+    function drawParallax(item, frame, totalFrames, index) {
+      const img = item.image;
+      const move = item.move || (item.move = makeMove(index));
+      const t = easeInOut(totalFrames <= 1 ? 1 : frame / (totalFrames - 1));
+      const x = move.x0 + (move.x1 - move.x0) * t;
+      const y = move.y0 + (move.y1 - move.y0) * t;
+      const zoom = move.zoomStart + (move.zoomEnd - move.zoomStart) * t;
+      const rot = move.rotate * Math.sin(t * Math.PI);
+
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      ctx.save();
+      ctx.translate(WIDTH / 2, HEIGHT / 2);
+      ctx.rotate(rot);
+      ctx.translate(-WIDTH / 2, -HEIGHT / 2);
+
+      ctx.globalAlpha = 1;
+      ctx.filter = 'blur(10px) saturate(1.05)';
+      fitCover(img, zoom * 1.09, x * 0.26, y * 0.26);
+
+      ctx.filter = 'blur(3px) saturate(1.04)';
+      ctx.globalAlpha = 0.9;
+      fitCover(img, zoom * 1.045, x * 0.55, y * 0.55);
+
+      ctx.filter = 'none';
+      ctx.globalAlpha = 1;
+      fitCover(img, zoom, x, y);
+
+      ctx.save();
+      ctx.beginPath();
+      const cx = WIDTH * (0.5 + 0.035 * Math.sin((index + 1) * 1.7));
+      const cy = HEIGHT * (0.52 + 0.025 * Math.cos((index + 1) * 1.3));
+      ctx.ellipse(cx, cy, WIDTH * 0.31, HEIGHT * 0.43, 0, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.globalAlpha = 0.55;
+      ctx.filter = 'contrast(1.05) saturate(1.08)';
+      fitCover(img, zoom * 1.022, x * 1.55, y * 1.55);
+      ctx.restore();
+
+      ctx.restore();
+      ctx.filter = 'none';
+      ctx.globalAlpha = 1;
+
+      const vignette = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.28, WIDTH / 2, HEIGHT / 2, WIDTH * 0.68);
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(0,0,0,.30)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+
+    function renderList() {
+      imageList.innerHTML = '';
+      if (!items.length) {
+        imageList.innerHTML = '<div class="empty">Chưa có ảnh nào.</div>';
+        drawEmptyCanvas();
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.draggable = true;
+        row.dataset.index = index;
+        const safeName = escapeHtml(item.file.name);
+        row.innerHTML = `
+          <img class="thumb" src="${item.url}" alt="${safeName}">
+          <div>
+            <div class="name" title="${safeName}">${safeName}</div>
+            <div class="meta">${index + 1} · ${item.image.naturalWidth}×${item.image.naturalHeight}</div>
+          </div>
+          <div>
+            <label for="frames-${item.id}">Frame</label>
+            <input id="frames-${item.id}" type="number" min="15" step="1" value="${item.frames}">
+          </div>
+          <div class="handle" title="Kéo để sắp xếp">☰</div>`;
+
+        row.querySelector('input').addEventListener('input', event => {
+          item.frames = Math.max(15, Number(event.target.value) || Number(defaultFrames.value) || 150);
+        });
+
+        row.addEventListener('dragstart', () => {
+          dragIndex = index;
+          row.classList.add('dragging');
+        });
+        row.addEventListener('dragend', () => {
+          dragIndex = null;
+          row.classList.remove('dragging');
+        });
+        row.addEventListener('dragover', event => event.preventDefault());
+        row.addEventListener('drop', event => {
+          event.preventDefault();
+          const targetIndex = Number(row.dataset.index);
+          if (dragIndex === null || dragIndex === targetIndex) return;
+          const [moved] = items.splice(dragIndex, 1);
+          items.splice(targetIndex, 0, moved);
+          items.forEach(item => item.move = null);
+          renderList();
+          drawParallax(items[0], 0, items[0].frames, 0);
+        });
+
+        imageList.appendChild(row);
+      });
+    }
+
+    function drawEmptyCanvas() {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#050816';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#aab3d3';
+      ctx.font = '700 54px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Thêm ảnh để tạo video 2.5D Parallax', WIDTH / 2, HEIGHT / 2);
+    }
+
+    async function loadFiles(files) {
+      const validFiles = [...files].filter(file => file.type.startsWith('image/'));
+      if (!validFiles.length) return;
+      setStatus(`Đang nạp ${validFiles.length} ảnh...`);
+      for (const file of validFiles) {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.decoding = 'async';
+        image.src = url;
+        await image.decode();
+        items.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+          file,
+          url,
+          image,
+          frames: Math.max(15, Number(defaultFrames.value) || 150),
+          move: null
+        });
+      }
+      renderList();
+      drawParallax(items[0], 0, items[0].frames, 0);
+      setStatus(`Đã nạp ${items.length} ảnh. Có thể kéo để sắp xếp và chỉnh frame từng ảnh.`, 'ok');
+    }
+
+    async function exportVideo() {
+      if (!items.length) {
+        setStatus('Vui lòng thêm ít nhất một ảnh.', 'err');
+        return;
+      }
+
+      exportBtn.disabled = true;
+      previewBtn.disabled = true;
+      setProgress(0);
+      setStatus('Đang xuất video 30fps...');
+
+      items.forEach((item, index) => item.move = makeMove(index));
+      const stream = canvas.captureStream(FPS);
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12_000_000 });
+      const chunks = [];
+      recorder.ondataavailable = event => {
+        if (event.data.size) chunks.push(event.data);
+      };
+      const finished = new Promise(resolve => recorder.onstop = resolve);
+      recorder.start();
+
+      const totalFrames = items.reduce((sum, item) => sum + item.frames, 0);
+      let rendered = 0;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        for (let frame = 0; frame < item.frames; frame++) {
+          drawParallax(item, frame, item.frames, i);
+          rendered++;
+          setProgress(rendered / totalFrames * 100);
+          setStatus(`Đang xuất: ảnh ${i + 1}/${items.length}, frame ${frame + 1}/${item.frames}`);
+          await new Promise(resolve => setTimeout(resolve, 1000 / FPS));
+        }
+      }
+
+      recorder.stop();
+      await finished;
+      const blob = new Blob(chunks, { type: mimeType });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `parallax-2-5d-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+      link.click();
+      setStatus('Xuất video xong. File WebM đã được tải xuống.', 'ok');
+      setProgress(100);
+      exportBtn.disabled = false;
+      previewBtn.disabled = false;
+    }
+
+    dropzone.addEventListener('click', () => imageInput.click());
+    dropzone.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') imageInput.click();
+    });
+    imageInput.addEventListener('change', event => loadFiles(event.target.files));
+
+    ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, event => {
+      event.preventDefault();
+      dropzone.classList.add('dragover');
+    }));
+    ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, event => {
+      event.preventDefault();
+      dropzone.classList.remove('dragover');
+    }));
+    dropzone.addEventListener('drop', event => loadFiles(event.dataTransfer.files));
+
+    previewBtn.addEventListener('click', () => {
+      if (!items.length) return setStatus('Vui lòng thêm ảnh trước khi xem thử.', 'err');
+      items[0].move = makeMove(0);
+      drawParallax(items[0], Math.floor(items[0].frames / 2), items[0].frames, 0);
+      setStatus('Đã render khung xem thử với Ease In Out.', 'ok');
+    });
+
+    exportBtn.addEventListener('click', exportVideo);
+    clearBtn.addEventListener('click', () => {
+      items.forEach(item => URL.revokeObjectURL(item.url));
+      items = [];
+      renderList();
+      setProgress(0);
+      setStatus('Đã xóa danh sách ảnh.');
+    });
+
+    drawEmptyCanvas();
+  </script>
+</body>
+</html>
